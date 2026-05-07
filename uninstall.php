@@ -6,14 +6,19 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
+$prefix = $wpdb->prefix;
+if ( ! preg_match( '/^[A-Za-z0-9_]+$/', $prefix ) ) {
+    return;
+}
+
 $tables = [
-    $wpdb->prefix . 'wpsfm_access_rules',
-    $wpdb->prefix . 'wpsfm_folders',
-    $wpdb->prefix . 'wpsfm_audit_log',
+    $prefix . 'wpsfm_access_rules',
+    $prefix . 'wpsfm_folders',
+    $prefix . 'wpsfm_audit_log',
 ];
 
 foreach ( $tables as $table ) {
-    $pattern = '/^' . preg_quote( $wpdb->prefix, '/' ) . 'wpsfm_(access_rules|folders|audit_log)$/';
+    $pattern = '/^' . preg_quote( $prefix, '/' ) . 'wpsfm_(access_rules|folders|audit_log)$/';
     if ( ! preg_match( $pattern, $table ) ) {
         continue;
     }

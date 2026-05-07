@@ -87,22 +87,17 @@ add_filter( 'wpsfm_can_delete', function( $can, $user_id ) {
     return $can;
 }, 10, 2 );
 
-// Endpoints autenticados
-add_action( 'wp_ajax_wpsfm_connector', function() {
-    ( new WPSFM_Connector() )->handle_request();
-} );
-add_action( 'wp_ajax_wpsfm_upload', function() {
-    ( new WPSFM_Connector() )->handle_upload();
-} );
-add_action( 'wp_ajax_wpsfm_mkdir', function() {
-    ( new WPSFM_Connector() )->handle_mkdir();
-} );
-add_action( 'wp_ajax_wpsfm_delete', function() {
-    ( new WPSFM_Connector() )->handle_delete();
-} );
+$wpsfm_handlers = [
+    'wpsfm_connector' => 'handle_request',
+    'wpsfm_upload'    => 'handle_upload',
+    'wpsfm_mkdir'     => 'handle_mkdir',
+    'wpsfm_delete'    => 'handle_delete',
+];
 
-// Bloqueia acesso anônimo
-foreach ( [ 'wpsfm_upload', 'wpsfm_delete', 'wpsfm_mkdir', 'wpsfm_connector' ] as $action ) {
+foreach ( $wpsfm_handlers as $action => $method ) {
+    add_action( 'wp_ajax_' . $action, function() use ( $method ) {
+        ( new WPSFM_Connector() )->$method();
+    } );
     add_action( 'wp_ajax_nopriv_' . $action, function() {
         wp_send_json_error( [ 'message' => 'Login necessário.' ], 401 );
     } );

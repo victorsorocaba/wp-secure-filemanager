@@ -72,8 +72,10 @@ class WPSFM_Connector {
             return '';
         }
 
+        $real            = wp_normalize_path( $real );
+        $base            = wp_normalize_path( $base );
         $base_with_slash = trailingslashit( $base );
-        if ( stripos( $real, $base_with_slash ) !== 0 && strcasecmp( $real, $base ) !== 0 ) {
+        if ( strpos( $real, $base_with_slash ) !== 0 && $real !== $base ) {
             return '';
         }
 
@@ -133,6 +135,11 @@ class WPSFM_Connector {
         return $normalized;
     }
 
+    private function decode_target( $target ) {
+        $decoded = base64_decode( $target, true );
+        return $decoded === false ? '' : $decoded;
+    }
+
     public function handle_upload() {
         check_ajax_referer( 'wpsfm_nonce', '_nonce' );
 
@@ -141,8 +148,8 @@ class WPSFM_Connector {
         }
 
         $target  = isset( $_POST['target'] ) ? sanitize_text_field( wp_unslash( $_POST['target'] ) ) : '';
-        $decoded = base64_decode( $target, true );
-        if ( $decoded === false ) {
+        $decoded = $this->decode_target( $target );
+        if ( $decoded === '' ) {
             wp_send_json_error( [ 'message' => 'Destino inválido.' ], 400 );
         }
         $dest = $this->sanitize_path( $decoded );
@@ -258,8 +265,8 @@ class WPSFM_Connector {
 
         $target   = isset( $_POST['target'] ) ? sanitize_text_field( wp_unslash( $_POST['target'] ) ) : '';
         $name     = isset( $_POST['name'] ) ? sanitize_file_name( wp_unslash( $_POST['name'] ) ) : '';
-        $decoded  = base64_decode( $target, true );
-        if ( $decoded === false ) {
+        $decoded  = $this->decode_target( $target );
+        if ( $decoded === '' ) {
             wp_send_json_error( [ 'message' => 'Destino inválido.' ], 400 );
         }
         $dest_dir = $this->sanitize_path( $decoded );
@@ -318,8 +325,8 @@ class WPSFM_Connector {
         $errors  = [];
 
         foreach ( $targets as $raw_target ) {
-            $decoded = base64_decode( sanitize_text_field( $raw_target ), true );
-            if ( $decoded === false ) {
+            $decoded = $this->decode_target( sanitize_text_field( $raw_target ) );
+            if ( $decoded === '' ) {
                 $errors[] = 'Caminho inválido: ' . esc_html( $raw_target );
                 continue;
             }
@@ -424,6 +431,9 @@ class WPSFM_Connector {
                 if ( strpos( $ip, ',' ) !== false ) {
                     $parts = explode( ',', $ip );
                     $ip    = trim( $parts[0] );
+                }
+                if ( ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+                    $ip = '';
                 }
                 break;
             }

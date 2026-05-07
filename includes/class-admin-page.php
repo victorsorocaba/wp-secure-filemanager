@@ -74,9 +74,9 @@ class WPSFM_Admin_Page {
         echo '<th>Ação</th><th>Arquivo/Pasta</th><th>IP</th></tr></thead><tbody>';
 
         $icons = [
-            'upload' => '<span style="color:green">⬆ Upload</span>',
-            'delete' => '<span style="color:red">🗑 Exclusão</span>',
-            'mkdir'  => '<span style="color:blue">📁 Nova Pasta</span>',
+            'upload' => '⬆ Upload',
+            'delete' => '🗑 Exclusão',
+            'mkdir'  => '📁 Nova Pasta',
         ];
 
         foreach ( $logs as $log ) {
@@ -85,7 +85,7 @@ class WPSFM_Admin_Page {
                 esc_html( $log->created_at ),
                 esc_html( $log->user_login ),
                 (int) $log->blog_id,
-                $icons[ $log->action ] ?? esc_html( $log->action ),
+                esc_html( $icons[ $log->action ] ?? $log->action ),
                 esc_html( $log->item_name ),
                 esc_html( $log->ip_address )
             );

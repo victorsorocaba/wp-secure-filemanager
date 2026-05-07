@@ -76,7 +76,7 @@ class WPSFM_File_Manager {
                 'Options -Indexes',
                 '',
                 '# Bloqueia execução de PHP neste diretório',
-                '<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phar)$">',
+                '<FilesMatch "\.(php[0-9]*|phtml|phar)$">',
                 '    Deny from all',
                 '</FilesMatch>',
                 '',
