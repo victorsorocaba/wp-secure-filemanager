@@ -26,11 +26,11 @@ require_once WPSFM_PLUGIN_DIR . 'includes/class-admin-page.php';
 require_once WPSFM_PLUGIN_DIR . 'includes/class-multisite-handler.php';
 
 // Inicializa o plugin
-function wpsfm_init() {
+function wpsfm_initialize_plugin() {
     $file_manager = new WPSFM_File_Manager();
     $file_manager->init();
 }
-add_action( 'plugins_loaded', 'wpsfm_init' );
+add_action( 'plugins_loaded', 'wpsfm_initialize_plugin' );
 
 // Hook de ativação
 register_activation_hook( __FILE__, 'wpsfm_activate' );

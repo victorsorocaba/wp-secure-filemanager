@@ -18,9 +18,5 @@ $tables = [
 ];
 
 foreach ( $tables as $table ) {
-    $pattern = '/^' . preg_quote( $prefix, '/' ) . 'wpsfm_(access_rules|folders|audit_log)$/';
-    if ( ! preg_match( $pattern, $table ) ) {
-        continue;
-    }
     $wpdb->query( "DROP TABLE IF EXISTS `{$table}`" );
 }
