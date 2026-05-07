@@ -169,9 +169,10 @@ class WPSFM_Admin_Page {
         $blogs = [];
 
         foreach ( $sites as $site ) {
+            $details = get_blog_details( $site->blog_id );
             $blogs[] = (object) [
                 'blog_id'  => (int) $site->blog_id,
-                'blogname' => get_blog_details( $site->blog_id )->blogname,
+                'blogname' => $details ? $details->blogname : sprintf( 'Site %d', (int) $site->blog_id ),
             ];
         }
 

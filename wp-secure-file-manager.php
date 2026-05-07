@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: WP Secure File Manager
- * Plugin URI:  https://seusite.com/wp-secure-file-manager
+ * Plugin URI:  https://example.com/wp-secure-file-manager
  * Description: Gerenciador de arquivos com controle de acesso baseado
  *              nas permissões nativas do WordPress e Multisite.
  * Version:     1.0.0
- * Author:      Seu Nome
+ * Author:      WP Secure File Manager
  * Text Domain: wp-secure-fm
  * Network:     true
  */

@@ -72,7 +72,8 @@ class WPSFM_Connector {
             return '';
         }
 
-        if ( strpos( $real, trailingslashit( $base ) ) !== 0 && $real !== $base ) {
+        $base_with_slash = trailingslashit( $base );
+        if ( stripos( $real, $base_with_slash ) !== 0 && strcasecmp( $real, $base ) !== 0 ) {
             return '';
         }
 
@@ -210,7 +211,7 @@ class WPSFM_Connector {
             $mime_type = finfo_file( $finfo, $file['tmp_name'] );
             finfo_close( $finfo );
 
-            $allowed_mimes = apply_filters( 'wpsfm_allowed_mimes', get_allowed_mime_types() );
+            $allowed_mimes = array_values( apply_filters( 'wpsfm_allowed_mimes', get_allowed_mime_types() ) );
             if ( ! in_array( $mime_type, $allowed_mimes, true ) ) {
                 return new WP_Error( 'forbidden_mime', sprintf( 'Tipo MIME não permitido: %s', $mime_type ) );
             }
@@ -420,6 +421,10 @@ class WPSFM_Connector {
         foreach ( [ 'HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR' ] as $key ) {
             if ( ! empty( $_SERVER[ $key ] ) ) {
                 $ip = sanitize_text_field( wp_unslash( $_SERVER[ $key ] ) );
+                if ( strpos( $ip, ',' ) !== false ) {
+                    $parts = explode( ',', $ip );
+                    $ip    = trim( $parts[0] );
+                }
                 break;
             }
         }

@@ -33,9 +33,9 @@
         </td>
       </tr>
       <tr>
-        <th>Valor</th>
+        <th><label for="rule_value">Valor</label></th>
         <td>
-          <input type="text" name="rule_value" class="regular-text">
+          <input type="text" id="rule_value" name="rule_value" class="regular-text">
           <p class="description">
             Para Role: editor, administrator, author...<br>
             Para Usuário: ID numérico do usuário<br>

@@ -1,5 +1,5 @@
 === WP Secure File Manager ===
-Contributors: seu_nome
+Contributors: victorsorocaba
 Tags: file manager, security, access control, multisite
 Requires at least: 5.0
 Tested up to: 6.6
