@@ -61,8 +61,7 @@ class WPSFM_Access_Control {
             )
         );
 
-        $col  = 'can_' . $permission;
-        $user = get_userdata( $user_id );
+        $col = 'can_' . $permission;
 
         foreach ( $rules as $rule ) {
             if ( empty( $rule->$col ) ) {

@@ -139,8 +139,12 @@ class WPSFM_Connector {
             wp_send_json_error( [ 'message' => 'Não autenticado.' ], 401 );
         }
 
-        $target = isset( $_POST['target'] ) ? sanitize_text_field( wp_unslash( $_POST['target'] ) ) : '';
-        $dest   = $this->sanitize_path( base64_decode( $target ) );
+        $target  = isset( $_POST['target'] ) ? sanitize_text_field( wp_unslash( $_POST['target'] ) ) : '';
+        $decoded = base64_decode( $target, true );
+        if ( $decoded === false ) {
+            wp_send_json_error( [ 'message' => 'Destino inválido.' ], 400 );
+        }
+        $dest = $this->sanitize_path( $decoded );
 
         if ( empty( $dest ) || ! is_dir( $dest ) ) {
             wp_send_json_error( [ 'message' => 'Pasta de destino inválida.' ], 400 );
@@ -253,7 +257,11 @@ class WPSFM_Connector {
 
         $target   = isset( $_POST['target'] ) ? sanitize_text_field( wp_unslash( $_POST['target'] ) ) : '';
         $name     = isset( $_POST['name'] ) ? sanitize_file_name( wp_unslash( $_POST['name'] ) ) : '';
-        $dest_dir = $this->sanitize_path( base64_decode( $target ) );
+        $decoded  = base64_decode( $target, true );
+        if ( $decoded === false ) {
+            wp_send_json_error( [ 'message' => 'Destino inválido.' ], 400 );
+        }
+        $dest_dir = $this->sanitize_path( $decoded );
 
         if ( empty( $dest_dir ) || empty( $name ) ) {
             wp_send_json_error( [ 'message' => 'Parâmetros inválidos.' ], 400 );
@@ -309,7 +317,12 @@ class WPSFM_Connector {
         $errors  = [];
 
         foreach ( $targets as $raw_target ) {
-            $path = $this->sanitize_path( base64_decode( sanitize_text_field( $raw_target ) ) );
+            $decoded = base64_decode( sanitize_text_field( $raw_target ), true );
+            if ( $decoded === false ) {
+                $errors[] = 'Caminho inválido: ' . esc_html( $raw_target );
+                continue;
+            }
+            $path = $this->sanitize_path( $decoded );
             if ( empty( $path ) ) {
                 $errors[] = 'Caminho inválido: ' . esc_html( $raw_target );
                 continue;

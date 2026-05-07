@@ -104,10 +104,10 @@ class WPSFM_Admin_Page {
         global $wpdb;
 
         $data = [
-            'folder_id'  => absint( $_POST['folder_id'] ),
-            'rule_type'  => sanitize_text_field( wp_unslash( $_POST['rule_type'] ) ),
-            'rule_value' => sanitize_text_field( wp_unslash( $_POST['rule_value'] ) ),
-            'blog_id'    => absint( $_POST['blog_id'] ),
+            'folder_id'  => absint( $_POST['folder_id'] ?? 0 ),
+            'rule_type'  => sanitize_text_field( wp_unslash( $_POST['rule_type'] ?? '' ) ),
+            'rule_value' => sanitize_text_field( wp_unslash( $_POST['rule_value'] ?? '' ) ),
+            'blog_id'    => absint( $_POST['blog_id'] ?? 0 ),
             'can_read'   => isset( $_POST['can_read'] ) ? 1 : 0,
             'can_write'  => isset( $_POST['can_write'] ) ? 1 : 0,
             'can_delete' => isset( $_POST['can_delete'] ) ? 1 : 0,
