@@ -44,9 +44,10 @@ jQuery(document).ready(function($) {
                 if (selected.length === 0) {
                     return;
                 }
-                var names = '- ' + selected.map(function(handle) {
+                var names = selected.map(function(handle) {
                     return fm.file(handle).name;
                 }).join('\n- ');
+                names = '- ' + names;
 
                 if (!confirm(
                     wpsfm_vars.i18n.confirm_delete + '\n\n' + names +
@@ -78,7 +79,7 @@ jQuery(document).ready(function($) {
                 if (!data || !data.formData) {
                     return;
                 }
-                // Route uploads through WordPress AJAX; otherwise elFinder defaults apply.
+                // Route uploads through WordPress AJAX when formData is available.
                 data.formData.append('_nonce', wpsfm_vars.nonce);
                 data.formData.append('blog_id', wpsfm_vars.blog_id);
                 data.formData.append('action', 'wpsfm_upload');
