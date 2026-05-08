@@ -151,7 +151,7 @@ class WPSFM_Admin_Page {
         $locale_filename_safe = sanitize_file_name( $locale );
         $locale_used_value    = '';
 
-        foreach ( array_filter( [ $locale_filename_safe, $locale ] ) as $candidate ) {
+        foreach ( array_filter( [ $locale_filename_safe, $locale ], 'strlen' ) as $candidate ) {
             if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $candidate ) ) {
                 continue;
             }
@@ -174,6 +174,9 @@ class WPSFM_Admin_Page {
         if ( $lang_value === '' ) {
             $lang_value = $locale_filename_safe !== '' ? $locale_filename_safe : 'en';
         }
+        if ( strpos( $lang_value, '_' ) !== false ) {
+            $lang_value = str_replace( '_', '-', $lang_value );
+        }
 
         wp_enqueue_script(
             'wpsfm-admin-js',
@@ -188,7 +191,7 @@ class WPSFM_Admin_Page {
             'connector_url' => admin_url( 'admin-ajax.php?action=wpsfm_connector' ),
             'nonce'         => wp_create_nonce( 'wpsfm_nonce' ),
             'blog_id'       => get_current_blog_id(),
-            'lang'          => str_replace( '_', '-', $lang_value ),
+            'lang'          => $lang_value,
             'i18n'          => [
                 'confirm_delete' => __( 'Excluir permanentemente os itens abaixo?', 'wp-secure-fm' ),
                 'irreversible'   => __( 'Esta ação NÃO pode ser desfeita.', 'wp-secure-fm' ),
