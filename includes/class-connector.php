@@ -212,12 +212,25 @@ class WPSFM_Connector {
         }
 
         $hash = $this->encode_target( $path );
+        $timestamp = 0;
+        if ( file_exists( $path ) ) {
+            $timestamp = filemtime( $path );
+        }
+        if ( ! $timestamp ) {
+            $timestamp = time();
+        }
+
+        $size = 0;
+        if ( ! $is_dir && file_exists( $path ) ) {
+            $size = (int) filesize( $path );
+        }
+
         $info = [
             'name'   => $name,
             'hash'   => $hash,
             'mime'   => $is_dir ? 'directory' : ( wp_check_filetype( $name )['type'] ?? 'application/octet-stream' ),
-            'ts'     => @filemtime( $path ) ?: time(),
-            'size'   => $is_dir ? 0 : (int) @filesize( $path ),
+            'ts'     => $timestamp,
+            'size'   => $size,
             'read'   => $this->access_control->can_access( $path, 'read' ) ? 1 : 0,
             'write'  => $this->access_control->can_access( $path, 'write' ) ? 1 : 0,
             'locked' => $this->access_control->can_access( $path, 'delete' ) ? 0 : 1,
@@ -879,7 +892,7 @@ class WPSFM_Connector {
             $mime_type = $file['type'];
         }
 
-        if ( ! empty( $mime_type ) && ! in_array( $mime_type, $allowed_mimes, true ) ) {
+        if ( empty( $mime_type ) || ! in_array( $mime_type, $allowed_mimes, true ) ) {
             return new WP_Error( 'forbidden_mime', sprintf( 'Tipo MIME não permitido: %s', $mime_type ) );
         }
 
@@ -1058,19 +1071,13 @@ class WPSFM_Connector {
         );
 
         if ( ! empty( $folder_ids ) ) {
-            $placeholders = implode( ',', array_fill( 0, count( $folder_ids ), '%d' ) );
-            $wpdb->query(
-                $wpdb->prepare(
-                    "DELETE FROM {$wpdb->prefix}wpsfm_access_rules WHERE folder_id IN ($placeholders)",
-                    $folder_ids
-                )
-            );
-            $wpdb->query(
-                $wpdb->prepare(
-                    "DELETE FROM {$wpdb->prefix}wpsfm_folders WHERE id IN ($placeholders)",
-                    $folder_ids
-                )
-            );
+            $folder_ids = array_map( 'absint', $folder_ids );
+            $id_list    = implode( ',', array_filter( $folder_ids ) );
+
+            if ( $id_list !== '' ) {
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}wpsfm_access_rules WHERE folder_id IN ($id_list)" );
+                $wpdb->query( "DELETE FROM {$wpdb->prefix}wpsfm_folders WHERE id IN ($id_list)" );
+            }
         }
     }
 
