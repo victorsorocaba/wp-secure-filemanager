@@ -42,6 +42,10 @@ class WPSFM_Admin_Page {
     }
 
     public function render_main_page() {
+        if ( ! current_user_can( 'upload_files' ) ) {
+            wp_die( __( 'Acesso negado.', 'wp-secure-fm' ) );
+        }
+
         $template = WPSFM_PLUGIN_DIR . 'templates/admin-page.php';
         if ( file_exists( $template ) ) {
             require $template;
@@ -124,34 +128,81 @@ class WPSFM_Admin_Page {
     }
 
     public function enqueue_assets( $hook ) {
-        if ( strpos( $hook, 'wp-secure-fm' ) === false ) {
+        $plugin_pages = [
+            'toplevel_page_wp-secure-fm',
+            'wp-secure-fm_page_wpsfm-permissions',
+            'wp-secure-fm_page_wpsfm-logs',
+        ];
+
+        if ( ! in_array( $hook, $plugin_pages, true ) ) {
             return;
         }
 
-        wp_enqueue_style( 'wpsfm-admin', WPSFM_PLUGIN_URL . 'assets/css/admin.css', [], WPSFM_VERSION );
-        wp_enqueue_style( 'elfinder', WPSFM_PLUGIN_URL . 'assets/elfinder/css/elfinder.min.css', [], WPSFM_VERSION );
-        wp_enqueue_style( 'elfinder-theme', WPSFM_PLUGIN_URL . 'assets/elfinder/css/theme.css', [], WPSFM_VERSION );
+        $elf = WPSFM_PLUGIN_URL . 'assets/elfinder/';
+        $ver = WPSFM_VERSION;
+
+        wp_enqueue_style( 'elfinder-css', $elf . 'css/elfinder.min.css', [], $ver );
+        wp_enqueue_style( 'elfinder-theme', $elf . 'css/theme.css', [ 'elfinder-css' ], $ver );
+        wp_enqueue_style( 'wpsfm-admin-css', WPSFM_PLUGIN_URL . 'assets/css/admin.css', [ 'elfinder-css' ], $ver );
+
+        wp_enqueue_script( 'elfinder-js', $elf . 'js/elfinder.min.js', [ 'jquery' ], $ver, true );
+
+        $locale               = get_locale();
+        $locale_filename_safe = sanitize_file_name( $locale );
+        $locale_used_value    = '';
+
+        $locale_candidates = [];
+        if ( $locale_filename_safe !== '' ) {
+            $locale_candidates[] = $locale_filename_safe;
+        }
+        if ( $locale !== '' && $locale !== $locale_filename_safe ) {
+            $locale_candidates[] = $locale;
+        }
+
+        foreach ( $locale_candidates as $candidate ) {
+            if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $candidate ) ) {
+                continue;
+            }
+
+            $lang_path = WPSFM_PLUGIN_DIR . 'assets/elfinder/js/i18n/elfinder.' . $candidate . '.js';
+            if ( file_exists( $lang_path ) ) {
+                wp_enqueue_script(
+                    'elfinder-i18n',
+                    $elf . 'js/i18n/elfinder.' . $candidate . '.js',
+                    [ 'elfinder-js' ],
+                    $ver,
+                    true
+                );
+                $locale_used_value = $candidate;
+                break;
+            }
+        }
+
+        $lang_value = $locale_filename_safe !== '' ? $locale_filename_safe : 'en';
+        if ( $locale_used_value !== '' ) {
+            $lang_value = $locale_used_value;
+        }
+        $lang_value = str_replace( '_', '-', $lang_value );
 
         wp_enqueue_script(
-            'elfinder',
-            WPSFM_PLUGIN_URL . 'assets/elfinder/js/elfinder.min.js',
-            [ 'jquery' ],
-            WPSFM_VERSION,
-            true
-        );
-
-        wp_enqueue_script(
-            'wpsfm-admin',
+            'wpsfm-admin-js',
             WPSFM_PLUGIN_URL . 'assets/js/admin.js',
-            [ 'elfinder' ],
-            WPSFM_VERSION,
+            [ 'elfinder-js' ],
+            $ver,
             true
         );
 
-        wp_localize_script( 'wpsfm-admin', 'wpsfm_vars', [
+        wp_localize_script( 'wpsfm-admin-js', 'wpsfm_vars', [
+            'ajax_url'      => admin_url( 'admin-ajax.php' ),
             'connector_url' => admin_url( 'admin-ajax.php?action=wpsfm_connector' ),
             'nonce'         => wp_create_nonce( 'wpsfm_nonce' ),
             'blog_id'       => get_current_blog_id(),
+            'lang'          => $lang_value,
+            'i18n'          => [
+                'confirm_delete' => __( 'Excluir permanentemente os itens abaixo?', 'wp-secure-fm' ),
+                'irreversible'   => __( 'Esta ação NÃO pode ser desfeita.', 'wp-secure-fm' ),
+                'server_error'   => __( 'Erro de comunicação com o servidor.', 'wp-secure-fm' ),
+            ],
         ] );
     }
 
