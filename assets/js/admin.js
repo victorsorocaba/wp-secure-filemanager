@@ -1,5 +1,5 @@
 jQuery(document).ready(function($) {
-    var $elfinder = $('#elfinder');
+    var $elfinder = $('#wpsfm-elfinder');
     if (!$elfinder.length || typeof $elfinder.elfinder !== 'function') {
         return;
     }
@@ -11,9 +11,10 @@ jQuery(document).ready(function($) {
             _nonce: wpsfm_vars.nonce,
             blog_id: wpsfm_vars.blog_id
         },
+        lang: wpsfm_vars.lang || 'en',
         uiOptions: {
             toolbar: [
-                ['back', 'forward'],
+                ['back', 'forward', 'up', 'reload'],
                 ['mkdir', 'mkfile'],
                 ['upload'],
                 ['info'],
@@ -30,6 +31,12 @@ jQuery(document).ready(function($) {
             'duplicate', 'rename', 'mkdir', 'mkfile',
             'paste', 'upload', 'info', 'view', 'help', 'sort'
         ],
+        commandsOptions: {
+            edit: { disabled: true },
+            chmod: { disabled: true },
+            extract: { disabled: true },
+            archive: { disabled: true }
+        },
         bind: {
             'before:rm': function(e, fm) {
                 e.preventDefault();
@@ -38,27 +45,42 @@ jQuery(document).ready(function($) {
                     return;
                 }
                 var names = selected.map(function(handle) {
-                    return fm.file(handle).name;
-                }).join('\n- ');
+                    return '- ' + fm.file(handle).name;
+                }).join('\n');
 
-                if (!confirm('Excluir permanentemente?\n\n- ' + names + '\n\nEsta ação NÃO pode ser desfeita.')) {
+                if (!confirm(
+                    wpsfm_vars.i18n.confirm_delete + '\n\n' + names +
+                    '\n\n' + wpsfm_vars.i18n.irreversible
+                )) {
                     return;
                 }
 
-                $.post(ajaxurl, {
+                $.post(wpsfm_vars.ajax_url, {
                     action: 'wpsfm_delete',
                     _nonce: wpsfm_vars.nonce,
                     targets: selected
-                }, function(response) {
+                })
+                .done(function(response) {
                     if (response.success) {
                         fm.remove({ removed: response.data.removed });
                         if (response.data.errors.length > 0) {
                             fm.error(response.data.errors);
                         }
                     } else {
-                        fm.error(response.data.message || 'Falha ao excluir.');
+                        fm.error(response.data.message || wpsfm_vars.i18n.server_error);
                     }
+                })
+                .fail(function() {
+                    fm.error(wpsfm_vars.i18n.server_error);
                 });
+            },
+            'before:upload': function(e, fm, data) {
+                if (data && data.formData) {
+                    data.formData.append('_nonce', wpsfm_vars.nonce);
+                    data.formData.append('blog_id', wpsfm_vars.blog_id);
+                    data.formData.append('action', 'wpsfm_upload');
+                    data.url = wpsfm_vars.ajax_url;
+                }
             }
         }
     });
