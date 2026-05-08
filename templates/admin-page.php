@@ -3,9 +3,6 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-if ( ! current_user_can( 'upload_files' ) ) {
-    wp_die( __( 'Acesso negado.', 'wp-secure-fm' ) );
-}
 ?>
 <div class="wrap wpsfm-wrap">
     <h1 class="wp-heading-inline">

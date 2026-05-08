@@ -76,6 +76,7 @@ jQuery(document).ready(function($) {
             },
             'before:upload': function(e, fm, data) {
                 if (data && data.formData) {
+                    // Route uploads through WordPress AJAX to apply nonce and capability checks.
                     data.formData.append('_nonce', wpsfm_vars.nonce);
                     data.formData.append('blog_id', wpsfm_vars.blog_id);
                     data.formData.append('action', 'wpsfm_upload');

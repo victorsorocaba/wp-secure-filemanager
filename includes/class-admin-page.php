@@ -147,16 +147,27 @@ class WPSFM_Admin_Page {
 
         wp_enqueue_script( 'elfinder-js', $elf . 'js/elfinder.min.js', [ 'jquery' ], $ver, true );
 
-        $locale    = get_locale();
-        $lang_path = WPSFM_PLUGIN_DIR . 'assets/elfinder/js/i18n/elfinder.' . $locale . '.js';
-        if ( file_exists( $lang_path ) ) {
-            wp_enqueue_script(
-                'elfinder-i18n',
-                $elf . 'js/i18n/elfinder.' . $locale . '.js',
-                [ 'elfinder-js' ],
-                $ver,
-                true
-            );
+        $locale         = get_locale();
+        $locale_sanitized = sanitize_file_name( $locale );
+        $locale_used    = '';
+
+        foreach ( array_unique( array_filter( [ $locale_sanitized, $locale ] ) ) as $candidate ) {
+            if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $candidate ) ) {
+                continue;
+            }
+
+            $lang_path = WPSFM_PLUGIN_DIR . 'assets/elfinder/js/i18n/elfinder.' . $candidate . '.js';
+            if ( file_exists( $lang_path ) ) {
+                wp_enqueue_script(
+                    'elfinder-i18n',
+                    $elf . 'js/i18n/elfinder.' . $candidate . '.js',
+                    [ 'elfinder-js' ],
+                    $ver,
+                    true
+                );
+                $locale_used = $candidate;
+                break;
+            }
         }
 
         wp_enqueue_script(
@@ -172,7 +183,7 @@ class WPSFM_Admin_Page {
             'connector_url' => admin_url( 'admin-ajax.php?action=wpsfm_connector' ),
             'nonce'         => wp_create_nonce( 'wpsfm_nonce' ),
             'blog_id'       => get_current_blog_id(),
-            'lang'          => str_replace( '_', '-', $locale ),
+            'lang'          => str_replace( '_', '-', $locale_used ?: ( $locale_sanitized ?: 'en' ) ),
             'i18n'          => [
                 'confirm_delete' => __( 'Excluir permanentemente os itens abaixo?', 'wp-secure-fm' ),
                 'irreversible'   => __( 'Esta ação NÃO pode ser desfeita.', 'wp-secure-fm' ),
