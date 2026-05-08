@@ -24,6 +24,9 @@ class WPSFM_Access_Control {
 
         $folder = $this->get_folder_by_path( $folder_path );
         if ( ! $folder ) {
+            $folder = $this->get_nearest_folder( $folder_path );
+        }
+        if ( ! $folder ) {
             return false;
         }
 
@@ -105,5 +108,40 @@ class WPSFM_Access_Control {
                 $blog_id
             )
         );
+    }
+
+    private function get_nearest_folder( $folder_path ) {
+        $normalized = wp_normalize_path( $folder_path );
+        $base       = realpath( WP_CONTENT_DIR . '/uploads/wpsfm' );
+
+        if ( $base === false ) {
+            return null;
+        }
+
+        $base    = wp_normalize_path( $base );
+        $current = $normalized;
+
+        if ( strpos( trailingslashit( $current ), trailingslashit( $base ) ) !== 0 ) {
+            return null;
+        }
+
+        while ( ! empty( $current ) ) {
+            if ( $current === $base ) {
+                return $this->get_folder_by_path( $current );
+            }
+
+            $folder = $this->get_folder_by_path( $current );
+            if ( $folder ) {
+                return $folder;
+            }
+
+            $parent = wp_normalize_path( dirname( $current ) );
+            if ( $parent === $current ) {
+                break;
+            }
+            $current = $parent;
+        }
+
+        return null;
     }
 }

@@ -93,7 +93,55 @@ class WPSFM_File_Manager {
             file_put_contents( $index, '<?php // Silence is golden.' );
         }
 
+        self::ensure_folder_record( $base, 0 );
         self::protect_subdirectories( $base );
+    }
+
+    public static function ensure_directory_protected( $dir ) {
+        $index = trailingslashit( $dir ) . 'index.php';
+        if ( ! file_exists( $index ) ) {
+            file_put_contents( $index, '<?php // Silence is golden.' );
+        }
+    }
+
+    /**
+     * Garante que a pasta exista na tabela de controle e retorna o ID do registro.
+     *
+     * @param string   $path    Caminho absoluto da pasta.
+     * @param int|null $blog_id Blog atual ou 0 para global.
+     * @return int ID do registro existente ou recém-criado.
+     */
+    public static function ensure_folder_record( $path, $blog_id = null ) {
+        global $wpdb;
+
+        $normalized = wp_normalize_path( $path );
+        if ( null === $blog_id ) {
+            $blog_id = get_current_blog_id();
+        }
+
+        $existing = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}wpsfm_folders WHERE folder_path = %s AND blog_id = %d",
+                $normalized,
+                $blog_id
+            )
+        );
+
+        if ( $existing ) {
+            return (int) $existing;
+        }
+
+        $wpdb->insert(
+            $wpdb->prefix . 'wpsfm_folders',
+            [
+                'folder_path' => $normalized,
+                'folder_name' => basename( $normalized ),
+                'blog_id'     => $blog_id,
+            ],
+            [ '%s', '%s', '%d' ]
+        );
+
+        return (int) $wpdb->insert_id;
     }
 
     private static function protect_subdirectories( $dir ) {
@@ -104,10 +152,7 @@ class WPSFM_File_Manager {
 
         foreach ( $iterator as $item ) {
             if ( $item->isDir() ) {
-                $index = $item->getRealPath() . '/index.php';
-                if ( ! file_exists( $index ) ) {
-                    file_put_contents( $index, '<?php // Silence is golden.' );
-                }
+                self::ensure_directory_protected( $item->getRealPath() );
             }
         }
     }
