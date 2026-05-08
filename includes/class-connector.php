@@ -17,7 +17,14 @@ class WPSFM_Connector {
     public function handle_request() {
         check_ajax_referer( 'wpsfm_nonce', '_nonce' );
 
-        WPSFM_File_Manager::create_base_directories();
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( [ 'message' => 'Não autenticado.' ], 401 );
+        }
+
+        $base = WP_CONTENT_DIR . '/uploads/wpsfm';
+        if ( ! is_dir( $base ) ) {
+            WPSFM_File_Manager::create_base_directories();
+        }
 
         $cmd  = isset( $_REQUEST['cmd'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['cmd'] ) ) : '';
         $path = isset( $_REQUEST['target'] ) ? $this->resolve_target_path( wp_unslash( $_REQUEST['target'] ) ) : '';
@@ -37,13 +44,15 @@ class WPSFM_Connector {
         }
 
         if ( $permission && ! empty( $permission_target ) && ! $this->access_control->can_access( $permission_target, $permission ) ) {
-            wp_send_json_error(
-                [
-                    'error'   => 'Access Denied',
-                    'message' => __( 'Você não tem permissão para esta operação.', 'wp-secure-fm' ),
-                ],
-                403
-            );
+            if ( ! in_array( $cmd, [ 'open', 'tree' ], true ) ) {
+                wp_send_json_error(
+                    [
+                        'error'   => 'Access Denied',
+                        'message' => __( 'Você não tem permissão para esta operação.', 'wp-secure-fm' ),
+                    ],
+                    403
+                );
+            }
         }
 
         $method = 'cmd_' . $cmd;
@@ -119,8 +128,28 @@ class WPSFM_Connector {
         return wp_normalize_path( $base );
     }
 
+    /**
+     * Converte caminho real em hash para o elFinder
+     * Formato: volume_id + base64(caminho)
+     */
+    private function encode_hash( $path ) {
+        $base = WP_CONTENT_DIR . '/uploads/wpsfm';
+        $rel  = ltrim( str_replace( $base, '', $path ), DIRECTORY_SEPARATOR );
+        return 'l1_' . rtrim( strtr( base64_encode( $rel ), '+/', '-_' ), '=' );
+    }
+
+    /**
+     * Converte hash do elFinder de volta para caminho real
+     */
+    private function decode_hash( $hash ) {
+        $base    = WP_CONTENT_DIR . '/uploads/wpsfm';
+        $encoded = substr( $hash, 3 ); // remove prefixo 'l1_'
+        $rel     = base64_decode( strtr( $encoded, '-_', '+/' ) );
+        return $rel ? $base . DIRECTORY_SEPARATOR . $rel : $base;
+    }
+
     private function encode_target( $path ) {
-        return base64_encode( $path );
+        return $this->encode_hash( $path );
     }
 
     private function is_path_within_base( $path ) {
@@ -203,50 +232,12 @@ class WPSFM_Connector {
     }
 
     private function get_file_info( $path, $parent_hash = null ) {
-        $is_dir = is_dir( $path );
-        $name   = basename( $path );
-        $root   = $this->get_root_path();
-
-        if ( $root !== '' && wp_normalize_path( $path ) === $root ) {
-            $name = 'wpsfm';
-        }
-
-        $hash = $this->encode_target( $path );
-        $timestamp = 0;
-        if ( file_exists( $path ) ) {
-            $timestamp = filemtime( $path );
-        }
-        if ( ! $timestamp ) {
-            $timestamp = time();
-        }
-
-        $size = 0;
-        if ( ! $is_dir && file_exists( $path ) ) {
-            $size = (int) filesize( $path );
-        }
-
-        $file_type = wp_check_filetype( $name );
-        $mime_type = $file_type['type'] ?: 'application/octet-stream';
-
-        $info = [
-            'name'   => $name,
-            'hash'   => $hash,
-            'mime'   => $is_dir ? 'directory' : $mime_type,
-            'ts'     => $timestamp,
-            'size'   => $size,
-            'read'   => $this->access_control->can_access( $path, 'read' ) ? 1 : 0,
-            'write'  => $this->access_control->can_access( $path, 'write' ) ? 1 : 0,
-            'locked' => $this->access_control->can_access( $path, 'delete' ) ? 0 : 1,
-        ];
+        $info = is_dir( $path )
+            ? $this->folder_to_elfinder( $path )
+            : $this->file_to_elfinder( $path );
 
         if ( $parent_hash ) {
             $info['phash'] = $parent_hash;
-        }
-
-        if ( $is_dir ) {
-            $info['dirs'] = $this->directory_has_subdirs( $path ) ? 1 : 0;
-        } else {
-            $info['url'] = $this->get_file_url( $path );
         }
 
         return $info;
@@ -324,8 +315,97 @@ class WPSFM_Connector {
     }
 
     private function decode_target( $target ) {
+        $target = trim( (string) $target );
+        if ( $target === '' ) {
+            return '';
+        }
+
+        if ( strpos( $target, 'l1_' ) === 0 ) {
+            return $this->decode_hash( $target );
+        }
+
         $decoded = base64_decode( $target, true );
         return $decoded === false ? '' : $decoded;
+    }
+
+    /**
+     * Formata uma PASTA no formato JSON que o elFinder espera
+     */
+    private function folder_to_elfinder( $path ) {
+        $base    = WP_CONTENT_DIR . '/uploads/wpsfm';
+        $is_root = ( realpath( $path ) === realpath( $base ) );
+        $parent  = $is_root ? null : $this->encode_hash( dirname( $path ) );
+
+        return [
+            'hash'     => $this->encode_hash( $path ),
+            'phash'    => $parent,
+            'name'     => $is_root ? 'Arquivos' : basename( $path ),
+            'mime'     => 'directory',
+            'size'     => 0,
+            'ts'       => filemtime( $path ),
+            'read'     => (int) $this->access_control->can_access( $path, 'read' ),
+            'write'    => (int) $this->access_control->can_access( $path, 'write' ),
+            'rm'       => (int) $this->access_control->can_access( $path, 'delete' ),
+            'locked'   => $is_root ? 1 : 0,
+            'dirs'     => (int) $this->has_subdirs( $path ),
+            'volumeid' => 'l1_',
+        ];
+    }
+
+    /**
+     * Formata um ARQUIVO no formato JSON que o elFinder espera
+     */
+    private function file_to_elfinder( $path ) {
+        $mime = $this->get_mime_type( $path );
+
+        return [
+            'hash'   => $this->encode_hash( $path ),
+            'phash'  => $this->encode_hash( dirname( $path ) ),
+            'name'   => basename( $path ),
+            'mime'   => $mime,
+            'size'   => filesize( $path ),
+            'ts'     => filemtime( $path ),
+            'read'   => 1,
+            'write'  => (int) $this->access_control->can_access( dirname( $path ), 'write' ),
+            'rm'     => (int) $this->access_control->can_access( dirname( $path ), 'delete' ),
+            'locked' => 0,
+            'url'    => content_url( 'uploads/wpsfm/' ) . str_replace(
+                WP_CONTENT_DIR . '/uploads/wpsfm/',
+                '',
+                $path
+            ),
+        ];
+    }
+
+    /**
+     * Verifica se uma pasta tem subdiretórios (para mostrar seta de expansão)
+     */
+    private function has_subdirs( $path ) {
+        $items = new DirectoryIterator( $path );
+        foreach ( $items as $item ) {
+            if ( ! $item->isDot() && $item->isDir() && $item->getFilename()[0] !== '.' ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Retorna o MIME type real do arquivo
+     */
+    private function get_mime_type( $path ) {
+        $finfo = finfo_open( FILEINFO_MIME_TYPE );
+        $mime  = finfo_file( $finfo, $path );
+        finfo_close( $finfo );
+        return $mime ?: 'application/octet-stream';
+    }
+
+    /**
+     * Retorna o tamanho máximo de upload formatado para o elFinder (ex: "50M")
+     */
+    private function get_max_upload_size() {
+        $bytes = apply_filters( 'wpsfm_max_upload_size', 50 * 1024 * 1024 );
+        return round( $bytes / 1024 / 1024 ) . 'M';
     }
 
     public function cmd_init( $path = '' ) {
@@ -345,30 +425,104 @@ class WPSFM_Connector {
     }
 
     public function cmd_open( $path = '' ) {
-        $target = $path ?: $this->get_root_path();
-        if ( empty( $target ) ) {
-            wp_send_json_error( [ 'message' => 'Destino inválido.' ], 400 );
+        $base       = WP_CONTENT_DIR . '/uploads/wpsfm';
+        $raw_target = isset( $_REQUEST['target'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['target'] ) ) : '';
+        $init       = isset( $_REQUEST['init'] ) ? (bool) $_REQUEST['init'] : false;
+        $target     = $path;
+
+        if ( empty( $target ) && $raw_target !== '' ) {
+            $target = $this->sanitize_path( $this->decode_hash( $raw_target ) );
+        }
+
+        if ( empty( $target ) && $raw_target !== '' && ! $init ) {
+            wp_send_json( [ 'error' => [ 'errFileNotFound' ] ] );
+        }
+
+        if ( $init || empty( $target ) ) {
+            $target = $base;
         }
 
         if ( is_file( $target ) ) {
             $target = dirname( $target );
         }
 
-        if ( ! is_dir( $target ) ) {
-            wp_send_json_error( [ 'message' => 'Pasta inválida.' ], 400 );
+        $target = $this->sanitize_path( $target );
+
+        if ( empty( $target ) || ! is_dir( $target ) ) {
+            wp_send_json( [ 'error' => [ 'errFileNotFound' ] ] );
         }
 
         if ( ! $this->access_control->can_access( $target, 'read' ) ) {
-            wp_send_json_error( [ 'message' => 'Sem permissão para acessar esta pasta.' ], 403 );
+            wp_send_json( [ 'error' => [ 'errPerm' ] ] );
         }
 
-        $cwd   = $this->get_file_info( $target );
-        $files = array_merge( [ $cwd ], $this->list_directory( $target, $cwd['hash'] ) );
+        $cwd   = $this->folder_to_elfinder( $target );
+        $files = [ $cwd ];
+
+        $items = new DirectoryIterator( $target );
+        foreach ( $items as $item ) {
+            if ( $item->isDot() ) {
+                continue;
+            }
+            if ( $item->getFilename()[0] === '.' ) {
+                continue;
+            }
+
+            $item_path = $item->getRealPath();
+
+            if ( $item->isDir() ) {
+                if ( ! $this->access_control->can_access( $item_path, 'read' ) ) {
+                    continue;
+                }
+                $files[] = $this->folder_to_elfinder( $item_path );
+                continue;
+            }
+
+            $files[] = $this->file_to_elfinder( $item_path );
+        }
 
         wp_send_json( [
-            'cwd'   => $cwd,
-            'files' => $files,
+            'cwd'         => $cwd,
+            'files'       => $files,
+            'api'         => '2.1',
+            'uplMaxSize'  => $this->get_max_upload_size(),
+            'uplMaxFile'  => 20,
+            'options'     => [
+                'path'          => str_replace( ABSPATH, '/', $target ),
+                'url'           => content_url( 'uploads/wpsfm/' ),
+                'tmbUrl'        => content_url( 'uploads/wpsfm/.tmb/' ),
+                'disabled'      => [ 'chmod', 'extract', 'archive', 'edit' ],
+                'separator'     => DIRECTORY_SEPARATOR,
+                'copyOverwrite' => 1,
+            ],
         ] );
+    }
+
+    public function cmd_tree() {
+        $target = isset( $_REQUEST['target'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['target'] ) ) : '';
+        $path   = $this->sanitize_path( $this->decode_hash( $target ) );
+
+        if ( empty( $path ) || ! is_dir( $path ) ) {
+            wp_send_json( [ 'error' => [ 'errFileNotFound' ] ] );
+        }
+
+        $tree  = [];
+        $items = new DirectoryIterator( $path );
+        foreach ( $items as $item ) {
+            if ( $item->isDot() || ! $item->isDir() ) {
+                continue;
+            }
+            if ( $item->getFilename()[0] === '.' ) {
+                continue;
+            }
+
+            $sub = $item->getRealPath();
+            if ( $this->access_control->can_access( $sub, 'read' ) ) {
+                $tree[] = $this->folder_to_elfinder( $sub );
+            }
+        }
+
+        wp_send_json( [ 'tree' => $tree ] );
     }
 
     public function cmd_ls( $path = '' ) {
