@@ -1,0 +1,20 @@
+.wpsfm-wrap {
+    margin: 0;
+    padding: 0 20px;
+}
+
+#wpsfm-elfinder {
+    width: 100%;
+    height: calc(100vh - 140px);
+    min-height: 500px;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.elfinder-button-icon-chmod,
+.elfinder-button-icon-extract,
+.elfinder-button-icon-archive {
+    display: none !important;
+}
