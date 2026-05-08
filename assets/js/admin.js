@@ -45,8 +45,9 @@ jQuery(document).ready(function($) {
                     return;
                 }
                 var names = selected.map(function(handle) {
-                    return '- ' + fm.file(handle).name;
-                }).join('\n');
+                    return fm.file(handle).name;
+                }).join('\n- ');
+                names = '- ' + names;
 
                 if (!confirm(
                     wpsfm_vars.i18n.confirm_delete + '\n\n' + names +

@@ -147,11 +147,11 @@ class WPSFM_Admin_Page {
 
         wp_enqueue_script( 'elfinder-js', $elf . 'js/elfinder.min.js', [ 'jquery' ], $ver, true );
 
-        $locale         = get_locale();
-        $locale_sanitized = sanitize_file_name( $locale );
+        $locale             = get_locale();
+        $locale_filename_safe = sanitize_file_name( $locale );
         $locale_used    = '';
 
-        foreach ( array_unique( array_filter( [ $locale_sanitized, $locale ] ) ) as $candidate ) {
+        foreach ( array_unique( array_filter( [ $locale_filename_safe, $locale ] ) ) as $candidate ) {
             if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $candidate ) ) {
                 continue;
             }
@@ -170,6 +170,11 @@ class WPSFM_Admin_Page {
             }
         }
 
+        $lang_value = $locale_used;
+        if ( $lang_value === '' ) {
+            $lang_value = $locale_filename_safe !== '' ? $locale_filename_safe : 'en';
+        }
+
         wp_enqueue_script(
             'wpsfm-admin-js',
             WPSFM_PLUGIN_URL . 'assets/js/admin.js',
@@ -183,7 +188,7 @@ class WPSFM_Admin_Page {
             'connector_url' => admin_url( 'admin-ajax.php?action=wpsfm_connector' ),
             'nonce'         => wp_create_nonce( 'wpsfm_nonce' ),
             'blog_id'       => get_current_blog_id(),
-            'lang'          => str_replace( '_', '-', $locale_used ?: ( $locale_sanitized ?: 'en' ) ),
+            'lang'          => str_replace( '_', '-', $lang_value ),
             'i18n'          => [
                 'confirm_delete' => __( 'Excluir permanentemente os itens abaixo?', 'wp-secure-fm' ),
                 'irreversible'   => __( 'Esta ação NÃO pode ser desfeita.', 'wp-secure-fm' ),
