@@ -151,9 +151,15 @@ class WPSFM_Admin_Page {
         $locale_filename_safe = sanitize_file_name( $locale );
         $locale_used_value    = '';
 
-        foreach ( array_filter( [ $locale_filename_safe, $locale ], static function( $value ) {
-            return $value !== '';
-        } ) as $candidate ) {
+        $locale_candidates = [];
+        if ( $locale_filename_safe !== '' ) {
+            $locale_candidates[] = $locale_filename_safe;
+        }
+        if ( $locale !== '' && $locale !== $locale_filename_safe ) {
+            $locale_candidates[] = $locale;
+        }
+
+        foreach ( $locale_candidates as $candidate ) {
             if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $candidate ) ) {
                 continue;
             }
@@ -172,9 +178,9 @@ class WPSFM_Admin_Page {
             }
         }
 
-        $lang_value = $locale_used_value;
-        if ( $lang_value === '' ) {
-            $lang_value = $locale_filename_safe !== '' ? $locale_filename_safe : 'en';
+        $lang_value = $locale_filename_safe !== '' ? $locale_filename_safe : 'en';
+        if ( $locale_used_value !== '' ) {
+            $lang_value = $locale_used_value;
         }
         $lang_value = str_replace( '_', '-', $lang_value );
 

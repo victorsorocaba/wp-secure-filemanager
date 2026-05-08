@@ -77,6 +77,7 @@ jQuery(document).ready(function($) {
             },
             'before:upload': function(e, fm, data) {
                 if (!data || !data.formData) {
+                    // Defer to elFinder defaults when formData is not provided.
                     return;
                 }
                 // Route uploads through WordPress AJAX when formData is available.
