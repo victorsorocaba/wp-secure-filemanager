@@ -147,11 +147,11 @@ class WPSFM_Admin_Page {
 
         wp_enqueue_script( 'elfinder-js', $elf . 'js/elfinder.min.js', [ 'jquery' ], $ver, true );
 
-        $locale             = get_locale();
+        $locale               = get_locale();
         $locale_filename_safe = sanitize_file_name( $locale );
-        $locale_used    = '';
+        $locale_used_value    = '';
 
-        foreach ( array_unique( array_filter( [ $locale_filename_safe, $locale ] ) ) as $candidate ) {
+        foreach ( array_filter( [ $locale_filename_safe, $locale ] ) as $candidate ) {
             if ( ! preg_match( '/^[A-Za-z0-9_-]+$/', $candidate ) ) {
                 continue;
             }
@@ -165,12 +165,12 @@ class WPSFM_Admin_Page {
                     $ver,
                     true
                 );
-                $locale_used = $candidate;
+                $locale_used_value = $candidate;
                 break;
             }
         }
 
-        $lang_value = $locale_used;
+        $lang_value = $locale_used_value;
         if ( $lang_value === '' ) {
             $lang_value = $locale_filename_safe !== '' ? $locale_filename_safe : 'en';
         }
