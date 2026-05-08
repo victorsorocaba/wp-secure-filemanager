@@ -225,10 +225,13 @@ class WPSFM_Connector {
             $size = (int) filesize( $path );
         }
 
+        $file_type = wp_check_filetype( $name );
+        $mime_type = $file_type['type'] ?: 'application/octet-stream';
+
         $info = [
             'name'   => $name,
             'hash'   => $hash,
-            'mime'   => $is_dir ? 'directory' : ( wp_check_filetype( $name )['type'] ?? 'application/octet-stream' ),
+            'mime'   => $is_dir ? 'directory' : $mime_type,
             'ts'     => $timestamp,
             'size'   => $size,
             'read'   => $this->access_control->can_access( $path, 'read' ) ? 1 : 0,
@@ -791,26 +794,33 @@ class WPSFM_Connector {
         $old_path = wp_normalize_path( $old_path );
         $new_path = wp_normalize_path( $new_path );
 
-        $like = $wpdb->esc_like( $old_path ) . '/%';
-        $wpdb->query(
+        $like    = $wpdb->esc_like( $old_path ) . '/%';
+        $folders = $wpdb->get_results(
             $wpdb->prepare(
-                "UPDATE {$wpdb->prefix}wpsfm_folders
-                 SET folder_path = REPLACE(folder_path, %s, %s)
+                "SELECT id, folder_path FROM {$wpdb->prefix}wpsfm_folders
                  WHERE folder_path = %s OR folder_path LIKE %s",
-                $old_path,
-                $new_path,
                 $old_path,
                 $like
             )
         );
 
-        $wpdb->update(
-            $wpdb->prefix . 'wpsfm_folders',
-            [ 'folder_name' => basename( $new_path ) ],
-            [ 'folder_path' => $new_path ],
-            [ '%s' ],
-            [ '%s' ]
-        );
+        foreach ( $folders as $folder ) {
+            $suffix          = substr( $folder->folder_path, strlen( $old_path ) );
+            $updated_path    = $new_path . $suffix;
+            $updated_name    = basename( $updated_path );
+            $updated_path    = wp_normalize_path( $updated_path );
+
+            $wpdb->update(
+                $wpdb->prefix . 'wpsfm_folders',
+                [
+                    'folder_path' => $updated_path,
+                    'folder_name' => $updated_name,
+                ],
+                [ 'id' => (int) $folder->id ],
+                [ '%s', '%s' ],
+                [ '%d' ]
+            );
+        }
     }
 
     public function handle_upload() {
@@ -1071,22 +1081,10 @@ class WPSFM_Connector {
         );
 
         if ( ! empty( $folder_ids ) ) {
-            $folder_ids   = array_values( array_filter( array_map( 'absint', $folder_ids ) ) );
-            $placeholders = implode( ',', array_fill( 0, count( $folder_ids ), '%d' ) );
-
-            if ( $placeholders !== '' ) {
-                $wpdb->query(
-                    $wpdb->prepare(
-                        "DELETE FROM {$wpdb->prefix}wpsfm_access_rules WHERE folder_id IN ($placeholders)",
-                        $folder_ids
-                    )
-                );
-                $wpdb->query(
-                    $wpdb->prepare(
-                        "DELETE FROM {$wpdb->prefix}wpsfm_folders WHERE id IN ($placeholders)",
-                        $folder_ids
-                    )
-                );
+            $folder_ids = array_values( array_filter( array_map( 'absint', $folder_ids ) ) );
+            foreach ( $folder_ids as $folder_id ) {
+                $wpdb->delete( $wpdb->prefix . 'wpsfm_access_rules', [ 'folder_id' => $folder_id ], [ '%d' ] );
+                $wpdb->delete( $wpdb->prefix . 'wpsfm_folders', [ 'id' => $folder_id ], [ '%d' ] );
             }
         }
     }
