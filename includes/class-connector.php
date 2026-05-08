@@ -1071,12 +1071,22 @@ class WPSFM_Connector {
         );
 
         if ( ! empty( $folder_ids ) ) {
-            $folder_ids = array_map( 'absint', $folder_ids );
-            $id_list    = implode( ',', array_filter( $folder_ids ) );
+            $folder_ids   = array_values( array_filter( array_map( 'absint', $folder_ids ) ) );
+            $placeholders = implode( ',', array_fill( 0, count( $folder_ids ), '%d' ) );
 
-            if ( $id_list !== '' ) {
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}wpsfm_access_rules WHERE folder_id IN ($id_list)" );
-                $wpdb->query( "DELETE FROM {$wpdb->prefix}wpsfm_folders WHERE id IN ($id_list)" );
+            if ( $placeholders !== '' ) {
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "DELETE FROM {$wpdb->prefix}wpsfm_access_rules WHERE folder_id IN ($placeholders)",
+                        $folder_ids
+                    )
+                );
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "DELETE FROM {$wpdb->prefix}wpsfm_folders WHERE id IN ($placeholders)",
+                        $folder_ids
+                    )
+                );
             }
         }
     }

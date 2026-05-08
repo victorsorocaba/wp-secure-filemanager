@@ -104,6 +104,13 @@ class WPSFM_File_Manager {
         }
     }
 
+    /**
+     * Garante que a pasta exista na tabela de controle e retorna o ID do registro.
+     *
+     * @param string   $path    Caminho absoluto da pasta.
+     * @param int|null $blog_id Blog atual ou 0 para global.
+     * @return int ID do registro existente ou recém-criado.
+     */
     public static function ensure_folder_record( $path, $blog_id = null ) {
         global $wpdb;
 
